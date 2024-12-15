@@ -5,7 +5,7 @@ provider "aws" {
 
 terraform {
   backend "s3" {
-    bucket         = "terraform-tfstate-file-test"
+    bucket         = "terraform-tfstate-file-testt"
     key            = "terraform.tfstate" # Path in the bucket
     region         = "us-east-1"
     encrypt        = true
@@ -42,7 +42,7 @@ resource "aws_instance" "container_instance" {
               yum install -y nginx
               # Set up SSH key for access
               mkdir -p /home/ec2-user/.ssh
-              echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDfsTTL6TCKHvRu22IKMPE7MMl8axo9N2U6FNbivFC547DNwrVetWmeWRwYnvee2yNJGK1hbHZTWRT91cBfC40GQzJDRyun9uii8NTSI62U4VgmjjAk4E+pWjZJH3ePTrbaQL2X+LG0NkV+29QHmKvEu9FrtucCcnn3jN0joTwJt27I9+zYs56d7R8VZpYEYXnE6gqbYnX9XResxOodV2ihfrtMGWOr1/6pbBtR7OkY4AiLkyPzzmuGej2hydEMxdNnHiIPFViMMtBxANVtfFDRC3YCG6gGEn1ePguR/vBSNXc0078RJ9xOayH5fNinqLm365OSSZ2oowM5VtRpCWqHlhFNsrIW6ZjkJUrAotDBwUtfkN8iyEa2JSlumIS2+TRidaCx7MTUG4hEuLflZcz2CyAPegbIazy/8V+uLv5u+sd24JljFjjnfnpv+K80ezJWKzqlZjFN2t/xB8KbMDrL5lBFxxwr2o2dMYJn+uTeqW0HJI1zf17HKhcYBZgM1KhyiGxa2nq9NIzEjVwdI7bMJ4ER9sxnZmuItnVGx7G/ncJxxHpPCCjK48hSHyb9d11SPROBwg8QHoK+4Ba4tNldXky+5NbDrJEYFypiWYBkxnxgJoEU9Bj8LKnD4NgF0Bgjjo7BcLXsUlYVIJuZc1E/Ef1JNC/ZUQ/ZPgwZ6qW8Mw== ahmad@DESKTOP-BVAMA07" >> /home/ec2-user/.ssh/authorized_keys
+              echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC49GsrehH2eksN1KXAeWxPz9RkYxvX7j4PmPsHTnWmgFR6yIMarbI9393KtY1i4gCTJ9LNePqXOn0X1KPz0WYI2rAndRv5vXUHPD8LNMk2HSCjJJPEMWe04R4tChnebahFHbk6mc6hcbzHEOI1OKwE46USboy6C1xGZpLTvkNRJ/+s+wmQbfHOtr5JEsKRWhB4n8682ozHvYFrMnuShnAncovlab/jfFNAbNFUyqlg3hyYOkHZZMdKwVt6xZnXmeCvqKRFbvjk09WjpNNfOdT3GTyEflGWF4bgyz43qeVlaq9oPFOKrs2/R4n+YWK5+0rJCalA3zXR1K8le7tHnIDYTScB3P/FDghlVRZayY56RVZjbRcXk2L1F5qh3pZDyDUI27BvligE8vN5QEpJn2mCZE6P3wX2h9Obe7eHcUxJgkD0lg3yx1Dx3P7Mmi657p8NIdCOGsv3Lm47UovpguN5dhoMIzI1ZjBzerBzkFafSuyZrzMzQ5/YAfHdve+MRyMnQ8EfuZje/hho1qZH4YA+ZAk4xSuQ5bbf50pJbx+D4aMgAPvWZZIteDePwRMOvIn1gB/F3gi9bdsYlaIsOxDXNQfQeHJUqvkIq8fWE2TpfGn7rsg8m0k6RttA0vGkBlGBiVQq3YMZAFkxrn/Iuc+3IfgiL7QpGP28w+/7bJ9cqw== ahmad@DESKTOP-BVAMA07" >> /home/ec2-user/.ssh/authorized_keys
               chmod 600 /home/ec2-user/.ssh/authorized_keys
               chown -R ec2-user:ec2-user /home/ec2-user/.ssh
               # Download Nginx configuration from S3
