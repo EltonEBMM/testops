@@ -42,7 +42,7 @@ resource "aws_instance" "container_instance" {
               yum install -y nginx
               # Set up SSH key for access
               mkdir -p /home/ec2-user/.ssh
-              echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJGDiH8J5m7v8gvekTat55QfJ0nZwfKph/wip83K2+/P ahmad@Eltons-MacBook-Pro.local" >> /home/ec2-user/.ssh/authorized_keys
+              echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC4VtyK1jhhNwQ+HDHhK/vOu+ffJb1Fv7iqdQND4aIVh9sODTERgvJZxNPDRthwBqy+4xhnEVrG3CnPykKG8rNZUz0SixGar7aDNmudnsj00hoRkSzOhBmT8eUwKdz10Oo+uN5ZIy7mw0xDE/fF/n13wd1A4yt4X5zSkwzG06cI38GnZIJQDlV6PrfzCJnoTSoVXx9qb5JP3MOzbSnv1bTEFWdz2j5eej1UM3Lw12JW030o54pXJAm9AUx4sMCbpxr6lYAnV+BOjYv0gA+adTCbvI3D3tcU4P7jHRlk3D/WY6Ha4/0WGPlScAra+KCsljPrzRcTR6z8ElKUqL7QuyyMapGAg/bjI0nIy6CRkQxiG/1ugmZLG8mwnZz8usH2UgKbaBIcbmVRC9TyKIhOFROJiOxKHetgxkbNX6MyumN3FddvAxVxYMcCesrbq1ELre1z760S2qOqassa8hXKRJ9faPAQQH52V6gDET0i110y/pLbBU/554oZw5qbiXQXp4k= ahmad@Eltons-MacBook-Pro.local" >> /home/ec2-user/.ssh/authorized_keys
               chmod 600 /home/ec2-user/.ssh/authorized_keys
               chown -R ec2-user:ec2-user /home/ec2-user/.ssh
               # Download Nginx configuration from S3
