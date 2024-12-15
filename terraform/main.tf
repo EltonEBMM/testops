@@ -30,7 +30,7 @@ resource "random_string" "secret_suffix" {
 # EC2 instance to host Nginx
 resource "aws_instance" "container_instance" {
   ami           = "ami-0453ec754f44f9a4a"  # Use a suitable AMI for EC2 instance
-  instance_type = "t3.small"               # Instance type
+  instance_type = "t3.medium"               # Instance type
 
   security_groups = [aws_security_group.container_sg.name]
   iam_instance_profile = aws_iam_instance_profile.container_iam_profile.name
@@ -42,7 +42,7 @@ resource "aws_instance" "container_instance" {
               yum install -y nginx
               # Set up SSH key for access
               mkdir -p /home/ec2-user/.ssh
-              echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDjzRgYWvFXwRemvXFpqmjQlUr00rRI/RXWam8woFhKA/eFPZRdDwtHPXSgHAcf7GyNcEmmqQNs0Gr0v1QWeWDbUJN7LA4U1jaPJlVTqAhKM0pPXBV6CWaRtZoyp1+Yt3QwOMIsdUvyCJsUsu12/49qIjV7t5JfjkEjSevBizu2v9GSHAfsHuSI8GF2gRyUESh+ipruJZHomsnAq9JFcslhCfQFLIRCZqFIWHCpADda8IUmKrrAV39xkrZ7KnVDVxiPPPMqQAzu8PX55hBGuL8nMaV2Qky4cWmxPDAxX2DmrbUafH6pnbiFDeNDGZgkrDtV1z+jWc6x6A6opa1Id6ElRs29tjO32gTA6GN9J1iYQ33VUl2mpJMMai75wcUbwfNknjPw5HcdxsJq+9lbKEodGOcqgtQN14wisycTFQzqXmZ9WEaAta7NJHjVtMFWkZ9UqOP2eLA22opMAAkuIlJVo5YIKofFm/PUOow+r44fkif8Df/0KEPJkL/fNQNn90M= faridamrahov@Ferids-MacBook-Pro.local" >> /home/ec2-user/.ssh/authorized_keys
+              echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDfy8ep24XsbMkbXO2RS/WNfnqTaiv6ArGtyxqRSuxG87b1AVkPl+PuQ9XlzVr+BVuP+Kqb22pphWYM6N+k9ZxEcCv69sdBKhLLyeOxntPmsFhQP/Z9GKc4oZEOljid9SWXbOI1hKVU4EKXRlHE0KvipH39O1DnaoQkTi56GQEYBVi2FfqBLFLnnb8mr96EACUowwj/ncBmOan0AI9HduhPKGTM1WhfRa+4x479hVeU62k698K4QB0o6Ptjd5T/X1mTqeJXb2iIujuQYq15N2zxoz3siIIE3V4X5PnPO8KfLhjhkqB+6fJtaAD9SGYPQRVXj1RZKfC8Q7P9ypkrp8lWJftbYiYs3bCSimWgEC9lkva0HNQgapjGNin71kmMK134DIZL30CsvKPe9j9AgY44wz+dypg+79vCtTfzdKOtAXEdWs9YAxG74vZzfHhfOCCmKQvCD9AUi92zYxe1ZL9yLtUhGwONtyVgHbxkIk2X3H1BlIzjhBjDcaDXXDCpM4M= ahmad@Eltons-MacBook-Pro.local" >> /home/ec2-user/.ssh/authorized_keys
               chmod 600 /home/ec2-user/.ssh/authorized_keys
               chown -R ec2-user:ec2-user /home/ec2-user/.ssh
               # Download Nginx configuration from S3
