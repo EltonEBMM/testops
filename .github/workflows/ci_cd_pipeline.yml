@@ -3,9 +3,9 @@ name: CI/CD Pipeline
 on:
     push:
       branches:
-        - "*"  # Tüm branch'ler için tetikleme
+        - main  # Tüm branch'ler için tetikleme
       paths:
-        - docker_container.yml   # or the branch you're using
+        - ansible/**   # or the branch you're using
 
 jobs:
   deploy:
