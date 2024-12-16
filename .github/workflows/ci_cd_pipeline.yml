@@ -1,11 +1,11 @@
 name: CI/CD Pipeline
 
 on:
-  push:
-    paths:
-      - docker_container.yml   # Trigger when this file changes
-    branches:
-      - main   # or the branch you're using
+    push:
+      branches:
+        - "*"  # Tüm branch'ler için tetikleme
+      paths:
+        - docker_container.yml   # or the branch you're using
 
 jobs:
   deploy:
