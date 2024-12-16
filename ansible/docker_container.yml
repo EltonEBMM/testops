@@ -4,7 +4,7 @@
   vars:
   #   # db_username: "{{ lookup('community.aws.aws_secretsmanager', 'db_credentials_pzjq1t06.DATABASE_USERNAME', region='us-east-1') }}"
   #   # db_password: "{{ lookup('community.aws.aws_secretsmanager', 'db_credentials_pzjq1t06.DATABASE_PASSWORD', region='us-east-1') }}"
-    mysecret: "{{ lookup('amazon.aws.secretsmanager_secret', 'db_credentials_qw4it1c', region='us-east-1') }}"
+    mysecret: "{{ lookup('amazon.aws.secretsmanager_secret', 'db_credentials_qw4it1', region='us-east-1') }}"
     # db_password: "{{ lookup('amazon.aws.secretsmanager_secret', 'db_credentials_pzjq1t06.DATABASE_PASSWORD', region='us-east-1') }}"
 
 
