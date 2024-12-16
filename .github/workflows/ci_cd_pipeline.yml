@@ -29,15 +29,16 @@ jobs:
           aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY"
           aws configure set region "us-east-1"
 
-          # EC2 Public IPv4 DNS almak için gerekli AWS komutunu çalıştırıyoruz.
+          # Aktif olan tüm EC2 örneklerinin Public IPv4 DNS bilgilerini almak
           echo "Fetching EC2 Instance Public IPv4 DNS..."
-          EC2_PUBLIC_IP=$(aws ec2 describe-instances \
-              --filters "Name=tag:Name,Values=my-working-instance" \
-              --query "Reservations[0].Instances[0].PublicIpAddress" \
-              --output text)
 
-          if [ "$EC2_PUBLIC_IP" == "None" ]; then
-              echo "No EC2 instance found with the given tag!"
+          # EC2 örneklerini listeliyoruz
+          EC2_PUBLIC_IP=$(aws ec2 describe-instances \
+              --query "Reservations[?Instances[0].State.Name=='running'].Instances[0].PublicIpAddress" \
+              --output text | head -n 1)
+
+          if [ -z "$EC2_PUBLIC_IP" ]; then
+              echo "No running EC2 instance found!"
               exit 1
           fi
 
@@ -46,7 +47,7 @@ jobs:
 
           # AWS Secrets Manager'dan db ile başlayan secret'ı alıyoruz.
           echo "Fetching secret from AWS Secrets Manager..."
-          SECRET_NAME=$(aws secretsmanager list-secrets --query "SecretList[?starts_with(Name, 'db')].Name" --output text)
+          SECRET_NAME=$(aws secretsmanager list-secrets --query "SecretList[?starts_with(Name, 'db')].Name" --output text | head -n 1)
 
           if [ -z "$SECRET_NAME" ]; then
               echo "No secrets found that start with 'db_'"
