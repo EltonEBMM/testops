@@ -1,20 +1,20 @@
 name: CI/CD Pipeline
 
 on:
-    push:
-      branches:
-        - main  # Trigger for changes in the main branch
-      paths:
-        - ansible/**  # Trigger for changes in the ansible folder
+  push:
+    branches:
+      - main
+    paths:
+      - ansible/**
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout the code
         uses: actions/checkout@v2
-    
+
       - name: Set up AWS CLI
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -22,42 +22,35 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
     
-      - name: Get EC2 Public IPv4 DNS
+      - name: Get EC2 Public IP
         id: get_ec2_ip
         run: |
-          # Retrieve EC2 Public IPv4 DNS dynamically based on instance name/tag
           EC2_PUBLIC_IP=$(aws ec2 describe-instances \
             --filters "Name=tag:Name,Values=my-instance" \
-            --query "Reservations[0].Instances[0].PublicDnsName" \
+            --query "Reservations[0].Instances[0].PublicIpAddress" \
             --output text)
-          echo "EC2 Public IPv4 DNS: $EC2_PUBLIC_IP"
+          echo "EC2 Public IP: $EC2_PUBLIC_IP"
           echo "EC2_PUBLIC_IP=$EC2_PUBLIC_IP" >> $GITHUB_ENV
     
-      - name: Retrieve secret name from AWS Secrets Manager (db credentials)
-        id: get_secret_name
+      - name: Retrieve db-related secret from AWS Secrets Manager
+        id: get_secret
         run: |
-          # List all secrets starting with "db"
-          SECRET_NAME=$(aws secretsmanager list-secrets \
-            --query "SecretList[?starts_with(Name,'db')].Name" \
-            --output text | head -n 1)  # Get the first secret name that starts with 'db'
-          echo "SECRET_NAME: $SECRET_NAME"
-          echo "SECRET_NAME=$SECRET_NAME" >> $GITHUB_ENV
-    
-      - name: Retrieve secret values from AWS Secrets Manager
-        id: get_secret_values
-        run: |
-          # Retrieve the secret values for the selected secret
-          SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.SECRET_NAME }} --query SecretString --output text)
+          SECRET=$(aws secretsmanager get-secret-value --secret-id db_credentials_6wheu4bq --query SecretString --output text)
           DB_USERNAME=$(echo $SECRET | jq -r .DATABASE_USERNAME)
           DB_PASSWORD=$(echo $SECRET | jq -r .DATABASE_PASSWORD)
           echo "DB_USERNAME=$DB_USERNAME" >> $GITHUB_ENV
           echo "DB_PASSWORD=$DB_PASSWORD" >> $GITHUB_ENV
 
-      - name: Update inventory.ini with EC2 Public IPv4 DNS
+      - name: Configure Git with identity for commit
         run: |
-          echo "Updating inventory.ini with EC2 Public IPv4 DNS"
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Update inventory.ini with EC2 Public IP
+        run: |
+          echo "Updating inventory.ini with EC2 Public IP"
           sed -i "s|<EC2_IP_PLACEHOLDER>|${{ env.EC2_PUBLIC_IP }}|" ansible/inventory.ini
-    
+      
       - name: Update docker_container.yml with the secret
         run: |
           echo "Updating docker_container.yml with the secret"
@@ -66,6 +59,6 @@ jobs:
           git commit -m "Updated inventory and docker container with new EC2 IP and secrets"
           git push origin main
 
-      - name: Run Ansible playbook to deploy
+      - name: Run Ansible playbook to deploy updated configuration
         run: |
           ansible-playbook -i ansible/inventory.ini ansible/docker_container.yml
