@@ -62,6 +62,13 @@ jobs:
           echo "DB_USERNAME=$DB_USERNAME" >> $GITHUB_ENV
           echo "DB_PASSWORD=$DB_PASSWORD" >> $GITHUB_ENV
 
+          # Debugging content before replacements
+          echo "Content of inventory.ini before update:"
+          cat ansible/inventory.ini
+
+          echo "Content of docker_container.yml before update:"
+          cat ansible/docker_container.yml
+
           # inventory.ini dosyasındaki EC2 Public IP'yi güncelleme.
           echo "Updating inventory.ini with EC2 Public IP..."
           sed -i "s|<EC2_IP_PLACEHOLDER>|${EC2_PUBLIC_IP}|" ansible/inventory.ini
@@ -70,10 +77,19 @@ jobs:
           echo "Updating docker_container.yml with DB secret..."
           sed -i "s|db_credentials_qw4it1c7|${SECRET_NAME}|" ansible/docker_container.yml
 
+          # Debugging content after replacements
+          echo "Content of inventory.ini after update:"
+          cat ansible/inventory.ini
+
+          echo "Content of docker_container.yml after update:"
+          cat ansible/docker_container.yml
+
           # Değişiklikleri git'e ekliyoruz ve commit edip push ediyoruz.
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
+          git status # Check status before committing to verify changes
+          
           git add ansible/inventory.ini ansible/docker_container.yml
           git commit -m "Updated EC2 Public IP and secrets in configuration files"
           git push origin main
