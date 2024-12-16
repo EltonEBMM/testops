@@ -1,59 +1,59 @@
-name: EC2 Deployment Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
     paths:
-      - docker_container.yml
+      - docker_container.yml   # Trigger when this file changes
     branches:
-      - main  # Change to the default branch of your repo
+      - main   # or the branch you're using
 
 jobs:
-  update_and_deploy:
+  deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
-      # Step 1: Checkout the code repository
-      - name: Checkout code
+      - name: Checkout the code
         uses: actions/checkout@v2
-
-      # Step 2: Set up AWS CLI using the provided AWS credentials
+    
       - name: Set up AWS CLI
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-
-      # Step 3: Fetch EC2 Public DNS from Terraform output (assumes Terraform is applied already)
-      - name: Get EC2 Public IPv4 DNS
-        id: ec2_dns
+    
+      - name: Get EC2 Public IP
+        id: get_ec2_ip
         run: |
-          EC2_PUBLIC_DNS=$(terraform output -raw ec2_public_dns)  # Assumes Terraform output is configured correctly in main.tf
-          echo "EC2 Public DNS: ${EC2_PUBLIC_DNS}"
-          echo "EC2_PUBLIC_DNS=${EC2_PUBLIC_DNS}" >> $GITHUB_ENV
-
-      # Step 4: Retrieve secret from AWS Secrets Manager
-      - name: Get DB Credentials from Secrets Manager
+          EC2_PUBLIC_IP=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=my-instance" \
+            --query "Reservations[0].Instances[0].PublicIpAddress" \
+            --output text)
+          echo "EC2 Public IP: $EC2_PUBLIC_IP"
+          echo "EC2_PUBLIC_IP=$EC2_PUBLIC_IP" >> $GITHUB_ENV
+    
+      - name: Retrieve secret from AWS Secrets Manager
         id: get_secret
         run: |
-          SECRET_NAME=$(aws secretsmanager list-secrets --query "SecretList[?starts_with(Name, 'db')].Name" --output text)
-          DATABASE_SECRET=$(aws secretsmanager get-secret-value --secret-id ${SECRET_NAME} --query 'SecretString' --output text)
-          DATABASE_USERNAME=$(echo $DATABASE_SECRET | jq -r '.DATABASE_USERNAME')
-          DATABASE_PASSWORD=$(echo $DATABASE_SECRET | jq -r '.DATABASE_PASSWORD')
-          echo "DATABASE_USERNAME=${DATABASE_USERNAME}" >> $GITHUB_ENV
-          echo "DATABASE_PASSWORD=${DATABASE_PASSWORD}" >> $GITHUB_ENV
+          SECRET=$(aws secretsmanager get-secret-value --secret-id db_credentials_qw4it1c7 --query SecretString --output text)
+          DB_USERNAME=$(echo $SECRET | jq -r .DATABASE_USERNAME)
+          DB_PASSWORD=$(echo $SECRET | jq -r .DATABASE_PASSWORD)
+          echo "DB_USERNAME=$DB_USERNAME" >> $GITHUB_ENV
+          echo "DB_PASSWORD=$DB_PASSWORD" >> $GITHUB_ENV
 
-      # Step 5: Update inventory.ini with the EC2 Public DNS
-      - name: Update inventory.ini with EC2 Public DNS
+      - name: Update inventory.ini
         run: |
-          sed -i 's/host_placeholder/${{ env.EC2_PUBLIC_DNS }}/g' inventory.ini
+          echo "Updating inventory.ini with EC2 Public IP"
+          sed -i "s|<EC2_IP_PLACEHOLDER>|${{ env.EC2_PUBLIC_IP }}|" ansible/inventory.ini
+      
+      - name: Update docker_container.yml
+        run: |
+          echo "Updating docker_container.yml with the secret"
+          sed -i "s|db_credentials_qw4it1c7|${{ env.SECRET_NAME }}|" ansible/docker_container.yml
+          git add ansible/docker_container.yml ansible/inventory.ini
+          git commit -m "Updated inventory and docker container with new EC2 IP and secrets"
+          git push origin main
 
-      # Step 6: Update docker_container.yml with the secret name
-      - name: Update docker_container.yml with the secret name
+      - name: Run Ansible playbook to deploy
         run: |
-          sed -i 's/db_credentials_qw4it1c7/${{ secrets.SECRET_NAME }}/g' docker_container.yml
-
-      # Step 7: Run Ansible Playbook to deploy the application
-      - name: Run Ansible Playbook
-        run: |
-          ansible-playbook -i inventory.ini docker_container.yml
+          ansible-playbook -i ansible/inventory.ini ansible/docker_container.yml
