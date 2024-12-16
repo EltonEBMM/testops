@@ -3,7 +3,7 @@
   become: true
   vars:
     aws_region: us-east-1
-    secret_name: db_credentials_oatz355t
+    secret_name: arn:aws:secretsmanager:us-east-1:921868492248:secret:db_credentials_6wheu4bq-DZxdw8
 
 
   tasks:
