@@ -10,7 +10,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout the code
         uses: actions/checkout@v2
@@ -21,44 +21,62 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-    
+
+      # Step 1: Retrieve EC2 Instance Public IP
       - name: Get EC2 Public IP
         id: get_ec2_ip
         run: |
+          # Replace with the specific tag or filter you use to identify your working EC2
           EC2_PUBLIC_IP=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=my-instance" \
+            --filters "Name=tag:Name,Values=my-working-instance" \
             --query "Reservations[0].Instances[0].PublicIpAddress" \
             --output text)
+          if [ "$EC2_PUBLIC_IP" == "None" ]; then
+            echo "No EC2 instance found!"
+            exit 1
+          fi
           echo "EC2 Public IP: $EC2_PUBLIC_IP"
           echo "EC2_PUBLIC_IP=$EC2_PUBLIC_IP" >> $GITHUB_ENV
-    
+
+      # Step 2: Retrieve secret from AWS Secrets Manager (db_credentials)
       - name: Retrieve db-related secret from AWS Secrets Manager
         id: get_secret
         run: |
-          SECRET=$(aws secretsmanager get-secret-value --secret-id db_credentials_6wheu4bq --query SecretString --output text)
+          # Fetch secret from Secrets Manager
+          SECRET=$(aws secretsmanager get-secret-value --secret-id db_credentials_qw4it1c7 --query SecretString --output text)
+          if [ -z "$SECRET" ]; then
+            echo "No secret found!"
+            exit 1
+          fi
+          # Parse out the db credentials from the secret JSON
           DB_USERNAME=$(echo $SECRET | jq -r .DATABASE_USERNAME)
           DB_PASSWORD=$(echo $SECRET | jq -r .DATABASE_PASSWORD)
           echo "DB_USERNAME=$DB_USERNAME" >> $GITHUB_ENV
           echo "DB_PASSWORD=$DB_PASSWORD" >> $GITHUB_ENV
 
+      # Step 3: Configure Git for committing changes
       - name: Configure Git with identity for commit
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
+      # Step 4: Update inventory.ini with EC2 Public IP
       - name: Update inventory.ini with EC2 Public IP
         run: |
           echo "Updating inventory.ini with EC2 Public IP"
-          sed -i "s|<EC2_IP_PLACEHOLDER>|${{ env.EC2_PUBLIC_IP }}|" ansible/inventory.ini
-      
+          sed -i "s|ec2-<current-ip>.compute-1.amazonaws.com|${{ env.EC2_PUBLIC_IP }}|" ansible/inventory.ini
+          cat ansible/inventory.ini # Optionally view the updated file to verify.
+
+      # Step 5: Update docker_container.yml with the Secret value (for DB credentials)
       - name: Update docker_container.yml with the secret
         run: |
           echo "Updating docker_container.yml with the secret"
-          sed -i "s|db_credentials_qw4it1c7|${{ env.SECRET_NAME }}|" ansible/docker_container.yml
+          sed -i "s|db_credentials_qw4it1c7|${{ secrets.SECRET_NAME }}|" ansible/docker_container.yml
           git add ansible/docker_container.yml ansible/inventory.ini
           git commit -m "Updated inventory and docker container with new EC2 IP and secrets"
           git push origin main
 
+      # Step 6: Run Ansible playbook to deploy updated configuration
       - name: Run Ansible playbook to deploy updated configuration
         run: |
           ansible-playbook -i ansible/inventory.ini ansible/docker_container.yml
