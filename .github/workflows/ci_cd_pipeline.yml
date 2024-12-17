@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: Update Configuration Files
 
 on:
   push:
@@ -8,10 +8,10 @@ on:
       - ansible/**
 
 permissions:
-  contents: write  # Allow write access for GitHub Actions to push chan
+  contents: write  # Allow write access for GitHub Actions to push changes
 
 jobs:
-  deploy:
+  update-config:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,77 +25,42 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Verify AWS Login
+      - name: Fetch EC2 Public DNS and Update inventory.ini
         run: |
-          echo "Verifying AWS credentials..."
-          aws sts get-caller-identity
-          echo "AWS Login successful!"
-
-      - name: Fetch EC2 Public IPv4 DNS and Update inventory.ini
-        run: |
-          # Fetch the public IP of the first running EC2 instance
-          echo "Fetching EC2 Instance Public IPv4 DNS..."
-
           PUBLIC_DNS=$(aws ec2 describe-instances \
             --query "Reservations[*].Instances[?State.Name=='running'].PublicDnsName" \
             --output text | head -n 1)
-          
+
           if [ -z "$PUBLIC_DNS" ]; then
               echo "No running EC2 instances found!"
               exit 1
           fi
 
-          echo "EC2 Public DNS: $PUBLIC_DNS"
-
-          # Write the IP to inventory.ini
           echo "[my_servers]" > ansible/inventory.ini
           echo "${PUBLIC_DNS} ansible_port=443 ansible_user=ec2-user" >> ansible/inventory.ini
 
-          echo "Content of inventory.ini:"
           cat ansible/inventory.ini
 
-      - name: Fetch Secrets from AWS Secrets Manager and Update docker_container.yml
+      - name: Fetch Secret from AWS Secrets Manager and Update docker_container.yml
         run: |
-          echo "Fetching Secrets from AWS Secrets Manager..."
-
-          # Fetch the first secret name that starts with 'db'
           SECRET_NAME=$(aws secretsmanager list-secrets \
             --query "SecretList[?starts_with(Name, 'db')].Name" \
             --output text | head -n 1)
 
-          if [ -z "$SECRET_NAME" ]; then
-              echo "No secrets found starting with 'db'!"
-              exit 1
-          fi
-
-          echo "Found Secret: $SECRET_NAME"
-
-          # Update docker_container.yml with the fetched secret name
           sed -i "s|mysecret: .*|mysecret: \"{{ lookup('amazon.aws.secretsmanager_secret', '${SECRET_NAME}', region='us-east-1') }}\"|" ansible/docker_container.yml
 
-          echo "Updated docker_container.yml with Secret: $SECRET_NAME"
-          echo "Content of docker_container.yml:"
           cat ansible/docker_container.yml
 
       - name: Commit and Push Updated Files
         run: |
-          echo "Configuring Git for committing changes..."
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions@github.com"
 
-          echo "Committing updated files..."
           git add ansible/inventory.ini ansible/docker_container.yml
 
           if git diff --cached --quiet; then
-            echo "No changes detected. Skipping commit."
+            echo "No changes to commit."
           else
-            git commit -m "Update EC2 DNS and Secrets in configuration files"
+            git commit -m "Update EC2 DNS and Secrets"
             git push origin main
-            echo "Changes have been pushed to the repository!"
           fi
-
-      - name: Restart Deployment Process
-        run: |
-          echo "Restarting deployment..."
-          ansible-playbook -i ansible/inventory.ini ansible/docker_container.yml
-          echo "Deployment process restarted successfully!"
