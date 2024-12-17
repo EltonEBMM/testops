@@ -8,7 +8,7 @@ on:
       - ansible/**
 
 permissions:
-  contents: write  # Allow write access for GitHub Actions to push changes
+  contents: write  # Allow write access for GitHub Actions to push chan
 
 jobs:
   deploy:
