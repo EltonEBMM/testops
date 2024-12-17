@@ -50,3 +50,26 @@ jobs:
 
           echo "Content of inventory.ini:"
           cat ansible/inventory.ini
+
+      - name: Fetch Secrets from AWS Secrets Manager and Update docker_container.yml
+        run: |
+          echo "Fetching Secrets from AWS Secrets Manager..."
+
+          # Fetch the first secret name that starts with 'db'
+          SECRET_NAME=$(aws secretsmanager list-secrets \
+            --query "SecretList[?starts_with(Name, 'db')].Name" \
+            --output text | head -n 1)
+
+          if [ -z "$SECRET_NAME" ]; then
+              echo "No secrets found starting with 'db'!"
+              exit 1
+          fi
+
+          echo "Found Secret: $SECRET_NAME"
+
+          # Update docker_container.yml with the fetched secret name
+          sed -i "s|mysecret: .*|mysecret: \"{{ lookup('amazon.aws.secretsmanager_secret', '${SECRET_NAME}', region='us-east-1') }}\"|" ansible/docker_container.yml
+
+          echo "Updated docker_container.yml with Secret: $SECRET_NAME"
+          echo "Content of docker_container.yml:"
+          cat ansible/docker_container.yml
