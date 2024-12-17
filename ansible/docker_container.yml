@@ -17,7 +17,7 @@
       yum:
         name: docker
         state: present
-      when: ansible_facts.os_family != "Amazon"  # Only for non-Amazon Linux
+      when: ansible_facts.os_family != "Amazon" 
 
     - name: Start Docker service
       systemd:
