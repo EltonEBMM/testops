@@ -8,7 +8,7 @@ on:
       - ansible/**
 
 permissions:
-  contents: write  # Allow write access for GitHub Actions to push cha
+  contents: write  # Allow write access for GitHub Actions to push changes
 
 jobs:
   update-config:
@@ -17,6 +17,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          persist-credentials: true   # Retain credentials for push
+          fetch-depth: 0              # Fetch full commit history
 
       - name: Set up AWS CLI
         uses: aws-actions/configure-aws-credentials@v1
@@ -52,6 +55,8 @@ jobs:
           cat ansible/docker_container.yml
 
       - name: Commit and Push Updated Files
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions@github.com"
@@ -62,5 +67,5 @@ jobs:
             echo "No changes to commit."
           else
             git commit -m "Update EC2 DNS and Secrets"
-            git push origin main
+            git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }} HEAD:main
           fi
