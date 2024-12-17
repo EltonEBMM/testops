@@ -35,7 +35,7 @@
         name: python_app  # Name of the container
         image: python  # Use the official Python image
         state: started  # Ensure the container is started
-        command: python -m http.server 8080  # Start a simple HTTP server in Python
+        command: python -m http.server 8080  # Start a simple HTTP server in 
         published_ports:
           - "8080:8080"  # Expose port 8080 from container to host
         env:
