@@ -15,6 +15,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      # Save the clean original repo state
+      - name: Stash Original State of Files
+        run: |
+          echo "Stashing clean repo state to restore later..."
+          git add .
+          git stash
+      
       - name: Set up AWS CLI
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -22,54 +29,61 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Verify AWS Login
-        run: |
-          echo "Verifying AWS credentials..."
-          aws sts get-caller-identity
-          echo "AWS Login successful!"
-
       - name: Fetch EC2 Public IPv4 DNS and Update inventory.ini
         run: |
-          # Fetch the public IP of the first running EC2 instance
           echo "Fetching EC2 Instance Public IPv4 DNS..."
-
           PUBLIC_DNS=$(aws ec2 describe-instances \
             --query "Reservations[*].Instances[?State.Name=='running'].PublicDnsName" \
             --output text | head -n 1)
-          
+
           if [ -z "$PUBLIC_DNS" ]; then
               echo "No running EC2 instances found!"
               exit 1
           fi
-
           echo "EC2 Public DNS: $PUBLIC_DNS"
 
           # Write the IP to inventory.ini
           echo "[my_servers]" > ansible/inventory.ini
           echo "${PUBLIC_DNS} ansible_port=443 ansible_user=ec2-user" >> ansible/inventory.ini
 
-          echo "Content of inventory.ini:"
-          cat ansible/inventory.ini
-
       - name: Fetch Secrets from AWS Secrets Manager and Update docker_container.yml
         run: |
-          echo "Fetching Secrets from AWS Secrets Manager..."
-
-          # Fetch the first secret name that starts with 'db'
-          SECRET_NAME=$(aws secretsmanager list-secrets \
-            --query "SecretList[?starts_with(Name, 'db')].Name" \
-            --output text | head -n 1)
+          SECRET_NAME=$(aws secretsmanager list-secrets --query "SecretList[?starts_with(Name, 'db')].Name" --output text | head -n 1)
 
           if [ -z "$SECRET_NAME" ]; then
-              echo "No secrets found starting with 'db'!"
+              echo "No secrets found that start with 'db_'"
               exit 1
           fi
 
-          echo "Found Secret: $SECRET_NAME"
+          echo "Fetching secret $SECRET_NAME"
+          echo "Updating docker_container.yml file..."
 
-          # Update docker_container.yml with the fetched secret name
-          sed -i "s|mysecret: .*|mysecret: \"{{ lookup('amazon.aws.secretsmanager_secret', '${SECRET_NAME}', region='us-east-1') }}\"|" ansible/docker_container.yml
+          sed -i "s|db_credentials_qw5ed4ite1|${SECRET_NAME}|" ansible/docker_container.yml
 
-          echo "Updated docker_container.yml with Secret: $SECRET_NAME"
-          echo "Content of docker_container.yml:"
-          cat ansible/docker_container.yml
+      - name: Commit and Push Changes to GitHub
+        run: |
+          echo "Configuring Git for committing changes..."
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions@github.com"
+
+          echo "Committing updated files..."
+          git add ansible/inventory.ini ansible/docker_container.yml
+
+          if git diff-index --quiet HEAD --; then
+            echo "No changes to commit."
+          else
+            git commit -m "Update EC2 IP and AWS secret in files"
+            git push origin main
+          fi
+
+      - name: Run Ansible Playbook
+        run: |
+          ansible-playbook -i ansible/inventory.ini ansible/docker_container.yml
+
+      # Restore files after the deployment process
+      - name: Restore Clean State After Deployment
+        run: |
+          echo "Restoring the original file state from stash..."
+          git reset --hard
+          git stash pop || echo "Nothing to restore from stash."
+          git push origin main --force
