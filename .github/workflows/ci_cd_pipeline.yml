@@ -1,99 +1,35 @@
-name: CI/CD Pipeline
+- name: Set up AWS CLI
+uses: aws-actions/configure-aws-credentials@v1
+with:
+  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  aws-region: us-east-1
 
-on:
-  push:
-    branches:
-      - main
-    paths:
-      - ansible/**
+- name: Verify AWS Login
+run: |
+  echo "Verifying AWS credentials..."
+  aws sts get-caller-identity
+  echo "AWS Login successful!"
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
+- name: Fetch EC2 Public IPv4 DNS and Update inventory.ini
+run: |
+  # Fetch the public IP of the first running EC2 instance
+  echo "Fetching EC2 Instance Public IPv4 DNS..."
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+  PUBLIC_DNS=$(aws ec2 describe-instances \
+    --query "Reservations[*].Instances[?State.Name=='running'].PublicDnsName" \
+    --output text | head -n 1)
+  
+  if [ -z "$PUBLIC_DNS" ]; then
+      echo "No running EC2 instances found!"
+      exit 1
+  fi
 
-      - name: Set up AWS CLI
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+  echo "EC2 Public DNS: $PUBLIC_DNS"
 
-      - name: Run Bash script to update inventory.ini and docker_container.yml
-        run: |
-          # AWS CLI yapılandırmasını yapıyoruz.
-          aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID"
-          aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY"
-          aws configure set region "us-east-1"
+  # Write the IP to inventory.ini
+  echo "[my_servers]" > ansible/inventory.ini
+  echo "${PUBLIC_DNS} ansible_port=443 ansible_user=ec2-user" >> ansible/inventory.ini
 
-          # Aktif olan tüm EC2 örneklerinin Public IPv4 DNS bilgilerini almak
-          echo "Fetching EC2 Instance Public IPv4 DNS..."
-
-          # EC2 örneklerini listeliyoruz
-          EC2_PUBLIC_IP=$(aws ec2 describe-instances \
-              --query "Reservations[?Instances[0].State.Name=='running'].Instances[0].PublicIpAddress" \
-              --output text | head -n 1)
-
-          if [ -z "$EC2_PUBLIC_IP" ]; then
-              echo "No running EC2 instance found!"
-              exit 1
-          fi
-
-          echo "EC2 Public IP: $EC2_PUBLIC_IP"
-          echo "EC2_PUBLIC_IP=$EC2_PUBLIC_IP" >> $GITHUB_ENV
-
-          # AWS Secrets Manager'dan db ile başlayan secret'ı alıyoruz.
-          echo "Fetching secret from AWS Secrets Manager..."
-          SECRET_NAME=$(aws secretsmanager list-secrets --query "SecretList[?starts_with(Name, 'db')].Name" --output text | head -n 1)
-
-          if [ -z "$SECRET_NAME" ]; then
-              echo "No secrets found that start with 'db_'"
-              exit 1
-          fi
-
-          SECRET=$(aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --query SecretString --output text)
-
-          DB_USERNAME=$(echo $SECRET | jq -r .DATABASE_USERNAME)
-          DB_PASSWORD=$(echo $SECRET | jq -r .DATABASE_PASSWORD)
-
-          echo "DB_USERNAME=$DB_USERNAME" >> $GITHUB_ENV
-          echo "DB_PASSWORD=$DB_PASSWORD" >> $GITHUB_ENV
-
-          # Debugging content before replacements
-          echo "Content of inventory.ini before update:"
-          cat ansible/inventory.ini
-
-          echo "Content of docker_container.yml before update:"
-          cat ansible/docker_container.yml
-
-          # inventory.ini dosyasındaki EC2 Public IP'yi güncelleme.
-          echo "Updating inventory.ini with EC2 Public IP..."
-          sed -i "s|<EC2_IP_PLACEHOLDER>|${EC2_PUBLIC_IP}|" ansible/inventory.ini
-
-          # docker_container.yml dosyasındaki secret'ı güncelleme.
-          echo "Updating docker_container.yml with DB secret..."
-          sed -i "s|db_credentials_qw4it1c7|${SECRET_NAME}|" ansible/docker_container.yml
-
-          # Debugging content after replacements
-          echo "Content of inventory.ini after update:"
-          cat ansible/inventory.ini
-
-          echo "Content of docker_container.yml after update:"
-          cat ansible/docker_container.yml
-
-          # Değişiklikleri git'e ekliyoruz ve commit edip push ediyoruz.
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-
-          git status # Check status before committing to verify changes
-          
-          git add ansible/inventory.ini ansible/docker_container.yml
-          git commit -m "Updated EC2 Public IP and secrets in configuration files"
-          git push origin main
-
-      - name: Run Ansible playbook
-        run: |
-          ansible-playbook -i ansible/inventory.ini ansible/docker_container.yml
+  echo "Content of inventory.ini:"
+  cat ansible/inventory.ini
