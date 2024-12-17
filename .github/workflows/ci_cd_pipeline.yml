@@ -1,35 +1,52 @@
-- name: Set up AWS CLI
-uses: aws-actions/configure-aws-credentials@v1
-with:
-  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  aws-region: us-east-1
+name: CI/CD Pipeline
 
-- name: Verify AWS Login
-run: |
-  echo "Verifying AWS credentials..."
-  aws sts get-caller-identity
-  echo "AWS Login successful!"
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ansible/**
 
-- name: Fetch EC2 Public IPv4 DNS and Update inventory.ini
-run: |
-  # Fetch the public IP of the first running EC2 instance
-  echo "Fetching EC2 Instance Public IPv4 DNS..."
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
 
-  PUBLIC_DNS=$(aws ec2 describe-instances \
-    --query "Reservations[*].Instances[?State.Name=='running'].PublicDnsName" \
-    --output text | head -n 1)
-  
-  if [ -z "$PUBLIC_DNS" ]; then
-      echo "No running EC2 instances found!"
-      exit 1
-  fi
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-  echo "EC2 Public DNS: $PUBLIC_DNS"
+        - name: Set up AWS CLI
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-  # Write the IP to inventory.ini
-  echo "[my_servers]" > ansible/inventory.ini
-  echo "${PUBLIC_DNS} ansible_port=443 ansible_user=ec2-user" >> ansible/inventory.ini
+      - name: Verify AWS Login
+        run: |
+          echo "Verifying AWS credentials..."
+          aws sts get-caller-identity
+          echo "AWS Login successful!"
 
-  echo "Content of inventory.ini:"
-  cat ansible/inventory.ini
+      - name: Fetch EC2 Public IPv4 DNS and Update inventory.ini
+        run: |
+          # Fetch the public IP of the first running EC2 instance
+          echo "Fetching EC2 Instance Public IPv4 DNS..."
+
+          PUBLIC_DNS=$(aws ec2 describe-instances \
+            --query "Reservations[*].Instances[?State.Name=='running'].PublicDnsName" \
+            --output text | head -n 1)
+          
+          if [ -z "$PUBLIC_DNS" ]; then
+              echo "No running EC2 instances found!"
+              exit 1
+          fi
+
+          echo "EC2 Public DNS: $PUBLIC_DNS"
+
+          # Write the IP to inventory.ini
+          echo "[my_servers]" > ansible/inventory.ini
+          echo "${PUBLIC_DNS} ansible_port=443 ansible_user=ec2-user" >> ansible/inventory.ini
+
+          echo "Content of inventory.ini:"
+          cat ansible/inventory.ini
