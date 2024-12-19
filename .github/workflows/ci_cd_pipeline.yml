@@ -72,7 +72,7 @@ jobs:
 
 
 
-          - name: Run Ansible Playbook
+      - name: Run Ansible Playbook
         run: |
           echo "Running Ansible Playbook..."
           ansible-playbook -i ansible/inventory.ini ansible/docker_container.yml
